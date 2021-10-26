@@ -25,16 +25,17 @@
     attribute vec3 aVertexPosition;
 
     uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
 
     void main(void) {
         gl_PointSize = 5.0;
-        gl_Position = uMVMatrix*vec4(aVertexPosition, 1.0);
+        gl_Position = uPMatrix*uMVMatrix*vec4(aVertexPosition, 1.0);
     }
     </script>
 
 
     <script type="text/javascript" src="shaders_setup.js"></script>
-    <script type="text/javascript" src="lab3.js"></script>
+    <script type="text/javascript" src="lab4.js"></script>
 
 
 </head>
