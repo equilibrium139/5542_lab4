@@ -216,6 +216,17 @@ function initGL(canvas) {
 }
 
 function webGLStart() {
+    // Hide cursor
+    document.addEventListener("click", function () {
+        document.body.requestPointerLock();
+    });
+    
+    function logMovement(event) {
+        console.log(`movement: ${event.movementX}, ${event.movementY}`);
+    }
+
+    document.addEventListener('mousemove', logMovement);
+
     var canvas = document.getElementById("lab1-canvas");
     initGL(canvas);
     initShaders();
