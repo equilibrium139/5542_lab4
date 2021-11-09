@@ -3,171 +3,7 @@ var shaderProgram;  // the shader program
 //viewport info 
 var vp_minX, vp_maxX, vp_minY, vp_maxY, vp_width, vp_height;
 
-// return vertices and indices needed to render unit sphere
-function UnitSphereData(num_latitude_lines = 64, num_longitude_lines = 64) {
-    var vertices = [0, 1, 0];
-
-    const latitude_delta = DegToRad(180 / (num_latitude_lines + 1));
-    var latitude_angle = latitude_delta;
-    const longitude_delta = DegToRad(360 / (num_longitude_lines));
-
-    for (var latitude_level = 0; latitude_level < num_latitude_lines; latitude_level++) {
-        var sin_latitude = Math.sin(latitude_angle);
-        var cos_latitude = Math.cos(latitude_angle);
-        var longitude_angle = 0;
-        var y = cos_latitude;
-        for (var longitude_level = 0; longitude_level < num_longitude_lines; longitude_level++) {
-            var x = sin_latitude * Math.cos(longitude_angle);
-            var z = sin_latitude * Math.sin(longitude_angle);
-            vertices.push(x, y, z);
-            longitude_angle += longitude_delta;
-        }
-        latitude_angle += latitude_delta;
-    }
-
-    vertices.push(0, -1, 0);
-
-    var indices = [];
-    // Connect first latitude level with top of sphere
-    var first_level_begin = 1;
-    var first_level_end = first_level_begin + num_longitude_lines - 1;
-    for (var latitude_level = 0; latitude_level < num_longitude_lines - 1; latitude_level++) {
-        indices.push(0, first_level_begin + latitude_level, first_level_begin + latitude_level + 1);
-    }
-    indices.push(0, first_level_end, first_level_begin);
-
-    // Connect latitude levels with each other
-    for (var latitude_level = 0; latitude_level < num_latitude_lines - 1; latitude_level++) {
-        var latitude_level_begin = 1 + latitude_level * num_longitude_lines;
-        var next_latitude_level_begin = latitude_level_begin + num_longitude_lines;
-
-        for (var longitude_level = 0; longitude_level < num_longitude_lines - 1; longitude_level++) {
-            var top_left_index = latitude_level_begin + longitude_level;
-            var top_right_index = top_left_index + 1;
-            var bottom_left_index = next_latitude_level_begin + longitude_level;
-            var bottom_right_index = bottom_left_index + 1;
-            indices.push(top_left_index, bottom_left_index, top_right_index,
-                bottom_left_index, bottom_right_index, top_right_index);
-        }
-
-        // Add quad to connect last point to first point
-        var top_left_index = latitude_level_begin + num_longitude_lines - 1;
-        var top_right_index = latitude_level_begin;
-        var bottom_left_index = next_latitude_level_begin + num_longitude_lines - 1;
-        var bottom_right_index = next_latitude_level_begin;
-        indices.push(top_left_index, bottom_left_index, top_right_index,
-            bottom_left_index, bottom_right_index, top_right_index);
-    }
-
-    // Connect last latitude level with bottom of sphere
-    var last_level_begin = 1 + (num_latitude_lines - 1) * num_longitude_lines;
-    var last_level_end = last_level_begin + num_longitude_lines - 1;
-    for (var latitude_level = 0; latitude_level < num_longitude_lines - 1; latitude_level++) {
-        indices.push(vertices.length - 1, last_level_begin + latitude_level, last_level_begin + latitude_level + 1);
-    }
-    indices.push(vertices.length - 1, last_level_begin, last_level_end);
-
-    return [vertices, indices];
-}
-
-function CylinderData(samples = 30)
-{
-    var vertices = [0, 0.5, 0];
-    
-    var angle = 0;
-    var delta_angle = DegToRad(360 / (samples + 1));
-
-    for (var i = 0; i < samples; i++)
-    {
-        var x = 0.5 * Math.cos(angle);
-        var z = 0.5 * Math.sin(angle);
-        vertices.push(x, 0.5, z, x, -0.5, z);
-        angle += delta_angle;
-    }
-
-    vertices.push(0, -0.5, 0);
-
-    var indices = [];
-
-    // Top circle
-    var top_circle_begin = 1;
-    var increment = 2;
-    var top_circle_end = top_circle_begin + increment * (samples - 1); 
-    for (var i = 0; i < samples - 1; i++)
-    {
-        indices.push(0, top_circle_begin + i * increment, top_circle_begin + (i + 1) * increment);
-    }
-    indices.push(0, top_circle_end, top_circle_begin);
-
-    // Body
-    var bottom_circle_begin = 2;
-    var bottom_circle_end = bottom_circle_begin + increment * (samples - 1);
-    for (var i = 0; i < samples - 1; i++)
-    {
-        var top_left = top_circle_begin + i * increment;
-        var top_right = top_left + increment;
-        var bottom_left = bottom_circle_begin + i * increment;
-        var bottom_right = bottom_left + increment;
-        indices.push(top_left, bottom_left, top_right,
-                     top_right, bottom_left, bottom_right);
-                    
-    }
-    // Connect last point to first point
-    indices.push(top_circle_end, bottom_circle_end, top_circle_begin,
-                 top_circle_begin, bottom_circle_end, bottom_circle_begin);
-
-    // Bottom cirlce
-    for (var i = 0; i < samples - 1; i++) {
-        indices.push(vertices.length - 1, bottom_circle_begin + i * increment, bottom_circle_begin + (i + 1) * increment);
-    }
-    indices.push(vertices.length - 1, bottom_circle_end, bottom_circle_begin);
-
-    return [vertices, indices];
-}
-
-function ConeData(samples = 30)
-{
-    vertices = [0, 0.5, 0];
-
-    var angle = 0;
-    var delta_angle = DegToRad(360 / (samples + 1));
-    var y = -0.5;
-    var radius = 0.5;
-
-    for (var i = 0; i < samples; i++)
-    {
-        var x = radius * Math.cos(angle);
-        var z = radius * Math.sin(angle);
-        vertices.push(x, y, z);
-        angle += delta_angle;
-    }
-
-    vertices.push(0, -0.5, 0);
-
-    indices = [];
-
-    // Connect top point to circle points
-    var circle_start = 1;
-    for (var i = 0; i < samples - 1; i++)
-    {
-        indices.push(0, circle_start + i, circle_start + i + 1);
-    }
-    var circle_end = circle_start + samples - 1;
-    indices.push(0, circle_end, circle_start);
-
-    // Create circle
-    for (var i = 0; i < samples - 1; i++)
-    {
-        indices.push(vertices.length - 1, circle_start + i, circle_start + i + 1);
-    }
-    indices.push(vertices.length - 1, circle_end, circle_start);
-
-    return [vertices, indices];
-}
-
-var camera_position = [0, 0, 5];
-var camera_forward = [0, 0, -1];
-var world_up = [0, 1, 0];
+var camera = new Camera([0, 0, -5], [0, 1, 0]);
 
 var fov = 60.0;
 var aspect_ratio = 1.0;
@@ -175,33 +11,55 @@ var near = 0.1;
 var far = 100.0;
 var rotation = 0;
 
-var sphere_vbo;
-var sphere_ebo;
-var num_sphere_indices;
+var previous_frame_time = 0;
+var delta_time = 0;
 
-function ViewMatrix() {
-    var view = mat4.create();
-    return mat4.lookAt(camera_position, camera_forward, world_up, view);
-}
+var current_buffers;
+var sphere_buffers;
+var cylinder_buffers;
+var cone_buffers;
+var tetra_buffers;
+var cube_buffers;
+
+var pressed={};
+
+var red = [1, 0, 0];
+var green = [0, 1, 0];
+var blue = [0, 0, 1];
+
+
+var person_root = new Node(null, null, [0, 0], 0, [1, 1, 1]);
+var torso;
+var neck;
+var head;
+var left_upper_arm; 
+var left_lower_arm;
+var right_upper_arm;
+var right_lower_arm;
+var left_upper_leg;
+var left_lower_leg;
+var right_upper_leg;
+var right_lower_leg;
 
 function ProjMatrix() {
     var proj = mat4.create();
     return mat4.perspective(fov, aspect_ratio, near, far, proj);
 }
 
-var red = [1, 0, 0];
-var green = [0, 1, 0];
-var blue = [0, 0, 1];
-
-var quad_vbo;
-var axes_vbo;
-
-var SOLID = 0;
-var LINE = 1;
-var POINT = 2;
-var draw_mode = SOLID;
-
-var draw_axes = true;
+function CreatePerson()
+{
+    torso = new Node(red, cube_buffers, [0, 0], 0, [0.5, 1, 0.5], person_root);
+    neck = new Node(blue, cube_buffers, [0, 0.65], 0, [0.25, 0.3, 0.25], torso, [0, -0.15]);
+    head = new Node(green, sphere_buffers, [0, 0.275], 0, [0.25, 0.25, 0.25], neck);
+    left_upper_arm = new Node(blue, cube_buffers, [-0.5, 0.45], 0, [0.5, 0.1, 0.1], torso, [0.25, 0]);
+    left_lower_arm = new Node(red, cube_buffers, [-0.5, 0], 0, [0.5, 0.1, 0.1], left_upper_arm, [0.25, 0]);
+    right_upper_arm = new Node(blue, cube_buffers, [0.5, 0.45], 0, [0.5, 0.1, 0.1], torso, [-.25, 0]);
+    right_lower_arm = new Node(red, cube_buffers, [0.5, 0], 0, [0.5, 0.1, 0.1], right_upper_arm, [-0.25, 0]);
+    left_upper_leg = new Node(blue, cube_buffers, [-0.2, -0.75], 0, [0.1, 0.5, 0.1], torso, [0, 0.25]);
+    left_lower_leg = new Node(green, cube_buffers, [0, -0.5], 0, [0.1, 0.5, 0.1], left_upper_leg, [0, 0.25]);
+    right_upper_leg = new Node(blue, cube_buffers, [0.2, -0.75], 0, [0.1, 0.5, 0.1], torso, [0, 0.25]);
+    right_lower_leg = new Node(green, cube_buffers, [0, -0.5], 0, [0.1, 0.5, 0.1], right_upper_leg, [0, 0.25]);    
+}
 
 function initGL(canvas) {
     try {
@@ -220,12 +78,6 @@ function webGLStart() {
     document.addEventListener("click", function () {
         document.body.requestPointerLock();
     });
-    
-    function logMovement(event) {
-        console.log(`movement: ${event.movementX}, ${event.movementY}`);
-    }
-
-    document.addEventListener('mousemove', logMovement);
 
     var canvas = document.getElementById("lab1-canvas");
     initGL(canvas);
@@ -240,36 +92,22 @@ function webGLStart() {
     shaderProgram.colorUniform = gl.getUniformLocation(shaderProgram, "uColor");
 
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.enable(gl.DEPTH_TEST);
 
     initScene();
 
     document.addEventListener('keydown', onKeyDown, false);
+    document.addEventListener('keyup', onKeyUp, false);
+
+    window.requestAnimationFrame(loop);
 }
 
 function CreateBuffers() {
-    var sphere_data = ConeData();
-    num_sphere_indices = sphere_data[1].length;
-
-    sphere_vbo = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, sphere_vbo);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sphere_data[0]), gl.STATIC_DRAW);
-
-    sphere_ebo = gl.createBuffer();
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sphere_ebo);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(sphere_data[1]), gl.STATIC_DRAW);
-
-    var axes_vertices =
-    [
-        0.0, 0.0, 0.0,
-        1.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 1.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 1.0
-    ];
-    axes_vbo = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, axes_vbo);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(axes_vertices), gl.STATIC_DRAW);
+    sphere_buffers = UnitSphereBuffers();
+    cylinder_buffers = CylinderBuffers();
+    cone_buffers = ConeBuffers();
+    tetra_buffers = TetrahedronBuffers();
+    cube_buffers = CubeBuffers();
 }
 
 function initScene() {
@@ -280,48 +118,90 @@ function initScene() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     CreateBuffers();
-    drawScene();
+    current_buffers = null;
+    CreatePerson();
 }
 
 function DegToRad(deg) {
     return (3.14 / 180) * deg;
 }
 
-function DrawAxes(matrix) {
-    gl.bindBuffer(gl.ARRAY_BUFFER, axes_vbo);
-    gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
-    var viewMat = ViewMatrix();
-    var proj = ProjMatrix();
-    var mv = mat4.multiply(viewMat, matrix, mv);
-    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
-    gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mv);
-    gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, proj);
-    gl.uniform3f(shaderProgram.colorUniform, 0, 1, 0);
-    gl.drawArrays(gl.LINES, 0, 2);
-    gl.uniform3f(shaderProgram.colorUniform, 0, 1, 1);
-    gl.drawArrays(gl.LINES, 2, 2);
-}
-
-function DrawSphere() {
-    var model = mat4.create();
-    mat4.identity(model);
-    model = mat4.rotate(model, DegToRad(rotation), [1, 0, 0]);
-    var view = ViewMatrix();
+function DrawShape(shape_buffers, model, color) {
+    var view = camera.GetViewMatrix();
     var proj = ProjMatrix();
 
     var modelView = mat4.create();
     mat4.multiply(view, model, modelView);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, sphere_vbo);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sphere_ebo);
+    gl.bindBuffer(gl.ARRAY_BUFFER, shape_buffers.vbo);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, shape_buffers.ebo);
     gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
     gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
     gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, modelView);
     gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, proj);
-    gl.uniform3f(shaderProgram.colorUniform, 1, 0, 0);
-    gl.drawElements(gl.TRIANGLES, num_sphere_indices, gl.UNSIGNED_SHORT, 0);
+    gl.uniform3f(shaderProgram.colorUniform, color[0], color[1], color[2]);
+    gl.drawElements(gl.TRIANGLES, shape_buffers.num_indices, gl.UNSIGNED_SHORT, 0);
+}
 
-    DrawAxes(model);
+function processInput()
+{
+    if (pressed['W']) camera.ProcessMoveCommand(FORWARD);
+    if (pressed['S']) camera.ProcessMoveCommand(BACK);
+    if (pressed['A']) camera.ProcessMoveCommand(LEFT);
+    if (pressed['D']) camera.ProcessMoveCommand(RIGHT);
+}
+
+function loop(current_time)
+{
+    processInput();
+    drawScene();
+    window.requestAnimationFrame(loop);
+}
+
+function resetScene(new_buffers) {
+    current_buffers = new_buffers;
+    camera = new Camera([0, 0, -5], [0, 1, 0]);
+}
+
+function DrawNode(node, parentWorldMatrix)
+{
+    var nodeLocalMatrixWithScaling = mat4.create();
+    mat4.scale(node.local_matrix, node.local_scale, nodeLocalMatrixWithScaling);
+    var nodeWorldMatrixWithScaling;
+
+    var nodeWorldMatrix = mat4.create();
+
+    if (parentWorldMatrix)
+    {
+        nodeWorldMatrixWithScaling = mat4.create();
+        mat4.multiply(parentWorldMatrix, nodeLocalMatrixWithScaling, nodeWorldMatrixWithScaling);
+        mat4.multiply(parentWorldMatrix, node.local_matrix, nodeWorldMatrix);
+    }
+    else 
+    {
+        // The localMatrix is the world matrix since node doesn't have a parent
+        nodeWorldMatrixWithScaling = nodeLocalMatrixWithScaling;
+        // Set world matrix to original matrix without scaling
+        mat4.set(node.local_matrix, nodeWorldMatrix);
+    }
+
+    DrawShape(node.shape_buffers, nodeWorldMatrixWithScaling, node.color);
+
+    for (const child of node.children) 
+    {
+        DrawNode(child, nodeWorldMatrix);
+    }
+}
+
+function DrawPerson()
+{
+    // Only top-level scale affects child nodes
+    var person_matrix = mat4.create();
+    mat4.scale(person_root.local_matrix, person_root.local_scale, person_matrix);
+    for (const child of person_root.children)
+    {
+        DrawNode(child, person_matrix);
+    }
 }
 
 function drawScene() {
@@ -330,15 +210,83 @@ function drawScene() {
     gl.viewport(vp_minX, vp_minY, vp_width, vp_height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    DrawSphere();
+    if (current_buffers != null)
+    {
+        var mat = mat4.create();
+        mat = mat4.identity(mat);    
+        DrawShape(current_buffers, mat, [1, 0, 0]);
+    }
+    else 
+    {
+        DrawPerson();
+    }
 }
 
 function onKeyDown(event) {
     switch (event.keyCode) {
-        case 82: // r
-            if (event.shiftKey) rotation -= 1;
-            else rotation += 1;
+        case 82: // R
+            if (event.shiftKey) person_root.rotate(-20);
+            else person_root.rotate(20);
+        break;
+        case 69: // E
+            if (event.shiftKey) person_root.scale([0.9, 0.9, 0.9]);
+            else person_root.scale([1.1, 1.1, 1.1]);
+        break;
+        case 49: // 1
+            neck.rotate(20);
+        break; 
+        case 50:
+            left_upper_arm.rotate(20);
+            break;
+        case 51:
+            left_lower_arm.rotate(20);
+            break;
+        case 52:
+            right_upper_arm.rotate(20);
+            break;
+        case 53:
+            right_lower_arm.rotate(20);
+            break;
+        case 54:
+            left_upper_leg.rotate(20);
+            break;
+        case 55:
+            left_lower_leg.rotate(20);
+            break;
+        case 56:
+            right_upper_leg.rotate(20);
+            break;
+        case 57:
+            right_lower_leg.rotate(20);
+            break;
+        case 87: // W
+            pressed['W'] = true;
+        break;
+        case 83: // S
+            pressed['S'] = true;
+        break;
+        case 65: // A
+            pressed['A'] = true;
+        break;
+        case 68:
+            pressed['D'] = true;
+        break;
+    }
+}
+
+function onKeyUp(event) {
+    switch (event.keyCode) {
+        case 87: // W
+            pressed['W'] = false;
+            break;
+        case 83: // S
+            pressed['S'] = false;
+            break;
+        case 65: // A
+            pressed['A'] = false;
+            break;
+        case 68:
+            pressed['D'] = false;
             break;
     }
-    drawScene();
 }

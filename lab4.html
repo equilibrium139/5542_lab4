@@ -35,28 +35,27 @@
 
 
     <script type="text/javascript" src="shaders_setup.js"></script>
+    <script type="text/javascript" src="camera.js"></script>
+    <script type="text/javascript" src="shapes.js"></script>
+    <script type="text/javascript" src="node.js"></script>
     <script type="text/javascript" src="lab4.js"></script>
-
-    <style type="text/css">
-        .nocursor {
-            cursor: none;
-        }
-    </style>
 </head>
 
 
 <body onload="webGLStart();">
-
     <canvas id="lab1-canvas" style="border:none;" width="500" height="500"></canvas>
-
-    <h4> Geometry: </h4>
-    <button onclick="draw_mode=POINT; drawScene();"> POINTS</button>
-    <button onclick="draw_mode=LINE; drawScene();"> LINES</button>
-    <button onclick="draw_mode=SOLID; drawScene();"> FACES</button>
-    <button onclick="draw_axes=!draw_axes; drawScene();"> AXES</button>
+    <div>
+        <button onclick="resetScene(sphere_buffers)">Sphere</button>
+        <button onclick="resetScene(cylinder_buffers)">Cylinder</button>
+        <button onclick="resetScene(cone_buffers)">Cone</button>
+        <button onclick="resetScene(tetra_buffers)">Tetrahedron</button>    
+        <button onclick="resetScene(cube_buffers)">Cube</button>    
+        <button onclick="resetScene(null)">Person</button>    
+    </div>
 
     <p>
-        WASD- move, e- scale down, E- scale up, r- rotate person
+        WASD- move camera, mouse to look around. Click once so the cursor locks to the canvas. In order to click the buttons, click escape so the cursor 
+        reappears. e- scale up, E- scale down, r- rotate person (these only work on the person).
     </p>
     <ul>
         <li>1- rotate neck</li>
